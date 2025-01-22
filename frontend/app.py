@@ -61,6 +61,11 @@ def main():
         for file in st.session_state.last_process_result['processed_files']:
             st.write(f"- {file['filename']}")
 
+            st.write("\nText Analysis:")
+            metadata = file['metadata']
+            st.write(f"- Number of sentences: {metadata['num_sentences']}")
+            st.write(f"- Number of words: {metadata['num_words']}")
+
 
                     
     

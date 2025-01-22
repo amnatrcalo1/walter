@@ -6,7 +6,7 @@ from nltk.tokenize import sent_tokenize, word_tokenize
 # If you don't download it, you'll get an error like:
 # LookupError: Resource punkt not found.
 # Please use the NLTK Downloader to obtain the resource.
-nltk.download('punkt')
+nltk.download('punkt_tab')
 
 
 def clean_text(text: str) -> str:

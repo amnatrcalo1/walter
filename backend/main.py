@@ -5,15 +5,13 @@ from PyPDF2 import PdfReader
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import logging
-
 import uvicorn
+from preprocessing import preprocess
 
-from backend.preprocessing import preprocess
 
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000",
     "http://localhost:8000",
     "http://localhost:8501",
 ]
@@ -53,11 +51,12 @@ async def upload_documents(files: List[UploadFile] = File(...)):
             
             combined_text += text
 
-            result = preprocess(combined_text)
-            print(result)
+            processed = preprocess(combined_text)
+            
             processed_files.append({
                 "filename": file.filename,
-                "processed_at": datetime.datetime.now().isoformat()
+                "processed_at": datetime.datetime.now().isoformat(),
+                "metadata": processed['metadata'],
             })
 
         return {
