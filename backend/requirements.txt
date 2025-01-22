@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-multipart
+PyPDF2
+langchain
+openai
+faiss-cpu
+python-dotenv
+black
+flake8
+pytest
+nltk
