@@ -10,3 +10,5 @@ black
 flake8
 pytest
 nltk
+python-jose[cryptography]
+passlib[bcrypt]

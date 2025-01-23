@@ -1,12 +1,14 @@
-import datetime
+from datetime import datetime, timedelta
 import io
 from typing import List
 from PyPDF2 import PdfReader
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+from fastapi.security import OAuth2PasswordRequestForm
 import uvicorn
 from preprocessing import preprocess
+from auth import *
 
 
 app = FastAPI()
@@ -28,8 +30,26 @@ app.add_middleware(
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+@app.post("/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = fake_users_db.get(form_data.username)
+    if not user or not verify_password(form_data.password, user["hashed_password"]):
+        raise HTTPException(
+            status_code=400,
+            detail="Incorrect email or password"
+        )
+    
+    access_token = create_access_token(
+        data={"sub": user["email"]},
+        expires_delta=timedelta(minutes=30)
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
 @app.post("/upload")
-async def upload_documents(files: List[UploadFile] = File(...)):
+async def upload_documents(files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)): # This will automatically verify the token
+    # If the token is invalid, get_current_user will raise an HTTPException
+    # If we get here, the user is authenticated
+    
     logger.info(f"Received {len(files)} files") 
     try:
         combined_text = ""
