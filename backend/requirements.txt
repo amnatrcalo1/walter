@@ -12,3 +12,6 @@ pytest
 nltk
 python-jose[cryptography]
 passlib[bcrypt]
+langchain-community
+langchain_openai
+weaviate-client>=4.0.0

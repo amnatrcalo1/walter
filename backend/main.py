@@ -1,15 +1,22 @@
 from datetime import datetime, timedelta
 import io
-from typing import List
+from typing import Dict, List
 from PyPDF2 import PdfReader
 from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from fastapi.security import OAuth2PasswordRequestForm
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from pydantic import BaseModel
 import uvicorn
+from utils import get_text_chunks
 from preprocessing import preprocess
 from auth import *
+from vector_store import create_vector_store, generate_response, get_all_documents, get_weaviate_client, retrieve_relevant_context
+from fastapi.responses import JSONResponse
 
+class QueryRequest(BaseModel):
+    query: str
 
 app = FastAPI()
 
@@ -72,21 +79,75 @@ async def upload_documents(files: List[UploadFile] = File(...), current_user: di
             combined_text += text
 
             processed = preprocess(combined_text)
+
+            # print(processed)
             
             processed_files.append({
                 "filename": file.filename,
-                "processed_at": datetime.datetime.now().isoformat(),
+                "processed_at": datetime.now().isoformat(),
                 "metadata": processed['metadata'],
             })
+
+            # Get chunks after processing all files
+        chunks = get_text_chunks(combined_text)
+        logger.info(f"Created {len(chunks)} chunks from the documents")
+
+        # Store chunks in vector database
+        try:
+            create_vector_store(chunks)
+            logger.info("Successfully stored vectors in Weaviate")
+        except Exception as e:
+            logger.error(f"Error storing vectors: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to store vectors")
 
         return {
             "status": "success",
             "message": f"Processed {len(processed_files)} files",
-            "processed_files": processed_files
+            "processed_files": processed_files,
         }
     except Exception as e:
         logger.error(f"Error processing files: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))  
+
+
+
+@app.get("/documents")
+async def get_documents(current_user: dict = Depends(get_current_user)):
+    """Retrieve all documents from the vector store."""
+    try:
+        documents = get_all_documents()
+        return {"documents": documents}
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.post("/query")
+async def query_documents(
+    request: QueryRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Query the vector store and get AI-generated response"""
+    try:
+        # Get relevant context
+        context = retrieve_relevant_context(request.query)
+        
+        # Generate response
+        response = generate_response(request.query, context)
+        
+        return {
+            "status": "success",
+            "response": response,
+            "context": context  # Optional: include if you want to see the chunks used
+        }
+    except Exception as e:
+        logger.error(f"Error processing query: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+  
+    
+    
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

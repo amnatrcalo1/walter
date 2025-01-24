@@ -3,44 +3,8 @@ import requests
 from typing import List, Optional
 import json
 
-# API endpoint
-API_URL = "http://localhost:8000"
+from utils import get_all_documents, login, query_documents, upload_files
 
-def login(email: str, password: str) -> Optional[str]:
-    try:
-        response = requests.post(
-            f"{API_URL}/token",
-            data={"username": email, "password": password}
-        )
-        if response.status_code == 200:
-            return response.json()["access_token"]
-        else:
-            st.error("Invalid email or password")
-            return None
-    except Exception as e:
-        st.error(f"Login failed: {str(e)}")
-        return None
-
-def upload_files(files: List[str], token: str) -> dict:
-    if not files:
-        return None
-    
-    files_to_upload = []
-    for file in files:
-        content_type = 'application/pdf' if file.name.endswith('.pdf') else 'text/markdown'
-        files_to_upload.append(
-            ('files', (file.name, file, content_type))
-        )
-
-        # st.write(files_to_upload)
-    
-    try:
-        response = requests.post(f"{API_URL}/upload", files=files_to_upload, headers={"Authorization": f"Bearer {token}"})
-        response.raise_for_status() 
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error uploading files: {str(e)}")
-        return None
 
 def main():
     st.title("Document Processing System")
@@ -80,7 +44,7 @@ def main():
                     st.error("Please upload at least one file first!")
                 else:
                     with st.spinner("Processing documents..."):
-                        result = upload_files(uploaded_files)
+                        result = upload_files(uploaded_files, st.session_state.token)
                         
                         if result:
                             st.success(f"{len(result['processed_files'])} files are processed.")
@@ -93,7 +57,16 @@ def main():
                             
                             st.session_state.last_process_result = result
 
-    if 'last_process_result' in st.session_state:
+        if st.button("Show All Documents"):
+                get_all_documents()
+
+        user_question = st.chat_input("How can I help you today?") 
+        if user_question:
+            with st.spinner("Generating response..."):
+                response = query_documents(user_question)
+                st.write(response)
+
+    if 'last_process_result' in st.session_state:        
         st.header("Summary")
         for file in st.session_state.last_process_result['processed_files']:
             st.write(f"- {file['filename']}")
@@ -102,6 +75,11 @@ def main():
             metadata = file['metadata']
             st.write(f"- Number of sentences: {metadata['num_sentences']}")
             st.write(f"- Number of words: {metadata['num_words']}")
+            st.write(f"- Number of characters: {metadata['num_characters']}")
+
+    
+
+    
 
 
                     

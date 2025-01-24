@@ -29,3 +29,12 @@ uvicorn main:app --reload
 Backend is running on port 8000.
 
 API documentation is available at http://localhost:8000/docs.
+
+### Run the Weaviate
+
+```bash
+docker-compose up -d
+```
+
+Weaviate is running on port 8080.
+
