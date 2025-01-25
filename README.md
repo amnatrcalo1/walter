@@ -38,3 +38,7 @@ docker-compose up -d
 
 Weaviate is running on port 8080.
 
+### Check the database
+
+To see a visual representation of the database, go to http://localhost:8080/v1/objects?class=Document
+

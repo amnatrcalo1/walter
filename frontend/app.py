@@ -57,8 +57,8 @@ def main():
                             
                             st.session_state.last_process_result = result
 
-        if st.button("Show All Documents"):
-                get_all_documents()
+        # if st.button("Show All Documents"):
+        #         get_all_documents()
         if st.button("Delete All Documents"):
                 delete_all_documents(st.session_state.token)
 
@@ -74,6 +74,10 @@ def main():
                     st.markdown(context)
                     if i < len(result["context"]):  # Don't add divider after last item
                         st.divider()
+
+            with st.expander("View Sources"):
+                for source in result["sources"]:
+                    st.markdown(source)
 
         if 'last_process_result' in st.session_state:        
             st.header("Summary")

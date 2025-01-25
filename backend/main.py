@@ -132,7 +132,8 @@ async def query_documents(
         return {
             "status": "success",
             "response": result["response"],
-            "context": result["context"]
+            "context": result["context"],
+            "sources": result["sources"]
         }
     except Exception as e:
         logger.error(f"Error processing query: {str(e)}")
