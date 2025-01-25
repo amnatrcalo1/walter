@@ -9,10 +9,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel
 import uvicorn
-from utils import get_text_chunks
+from utils import get_text_chunks, process_query
 from preprocessing import preprocess
 from auth import *
-from vector_store import create_vector_store, generate_response, get_all_documents, get_weaviate_client, retrieve_relevant_context
+from vector_store import create_vector_store, delete_all_documents, get_all_documents
 from fastapi.responses import JSONResponse
 
 class QueryRequest(BaseModel):
@@ -128,19 +128,23 @@ async def query_documents(
 ):
     """Query the vector store and get AI-generated response"""
     try:
-        # Get relevant context
-        context = retrieve_relevant_context(request.query)
-        
-        # Generate response
-        response = generate_response(request.query, context)
-        
+        result = process_query(request.query)
         return {
             "status": "success",
-            "response": response,
-            "context": context  # Optional: include if you want to see the chunks used
+            "response": result["response"],
+            "context": result["context"]
         }
     except Exception as e:
         logger.error(f"Error processing query: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.delete("/documents")
+async def delete_documents(current_user: dict = Depends(get_current_user)):
+    """Delete all documents from the vector store"""
+    try:
+        result = delete_all_documents()
+        return result
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 

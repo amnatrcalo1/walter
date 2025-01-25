@@ -3,7 +3,7 @@ import requests
 from typing import List, Optional
 import json
 
-from utils import get_all_documents, login, query_documents, upload_files
+from utils import delete_all_documents, get_all_documents, login, query_documents, upload_files
 
 
 def main():
@@ -59,31 +59,33 @@ def main():
 
         if st.button("Show All Documents"):
                 get_all_documents()
+        if st.button("Delete All Documents"):
+                delete_all_documents(st.session_state.token)
 
         user_question = st.chat_input("How can I help you today?") 
         if user_question:
             with st.spinner("Generating response..."):
-                response = query_documents(user_question)
-                st.write(response)
+                result = query_documents(user_question, st.session_state.token)
+            st.write(result["response"]);
+        #  Display source context in expandable section
+            with st.expander("View Source Context"):
+                for i, context in enumerate(result["context"], 1):
+                    st.markdown(f"**Source {i}:**")
+                    st.markdown(context)
+                    if i < len(result["context"]):  # Don't add divider after last item
+                        st.divider()
 
-    if 'last_process_result' in st.session_state:        
-        st.header("Summary")
-        for file in st.session_state.last_process_result['processed_files']:
-            st.write(f"- {file['filename']}")
+        if 'last_process_result' in st.session_state:        
+            st.header("Summary")
+            for file in st.session_state.last_process_result['processed_files']:
+                st.write(f"- {file['filename']}")
 
-            st.write("\nText Analysis:")
-            metadata = file['metadata']
-            st.write(f"- Number of sentences: {metadata['num_sentences']}")
-            st.write(f"- Number of words: {metadata['num_words']}")
-            st.write(f"- Number of characters: {metadata['num_characters']}")
-
-    
-
-    
-
-
-                    
-    
+                st.write("\nText Analysis:")
+                metadata = file['metadata']
+                st.write(f"- Number of sentences: {metadata['num_sentences']}")
+                st.write(f"- Number of words: {metadata['num_words']}")
+                st.write(f"- Number of characters: {metadata['num_characters']}")
+  
 
 if __name__ == "__main__":
     main()

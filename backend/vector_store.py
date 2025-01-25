@@ -1,12 +1,18 @@
 import os
 from typing import List, Dict, Any
-from weaviate import WeaviateClient
+from weaviate.client import WeaviateClient # dodala weviate.clinet umejsto weaviate
+from langchain_community.vectorstores import Weaviate
+import weaviate
 from weaviate.connect import ConnectionParams
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 import logging
 
 logger = logging.getLogger(__name__)
 
+# Returns raw Weaviate database client
+# Used for direct database operations (create/update/delete)
+# Needed for low-level operations
+# What we've been using for storing documents
 def get_weaviate_client():
     """Get connected Weaviate client"""
     client = WeaviateClient(
@@ -17,6 +23,22 @@ def get_weaviate_client():
     )
     client.connect()
     return client
+
+# Returns LangChain's wrapper around Weaviate
+# Integrates with other LangChain components
+# Handles embeddings automatically
+# Better for RAG operations (retrieval and querying)
+def get_vectorstore():
+    """Get Weaviate vectorstore with LangChain integration"""
+    client = get_weaviate_client()
+    embeddings = OpenAIEmbeddings()
+    
+    return Weaviate(
+        client=client,
+        index_name="Document",
+        text_key="content",
+        embedding=embeddings,
+    )
 
 def get_all_documents() -> List[Dict[str, Any]]:
     """Retrieve all documents from the vector store"""
@@ -30,6 +52,20 @@ def get_all_documents() -> List[Dict[str, Any]]:
         return [{"content": obj.properties.get("content")} for obj in result.objects]
     except Exception as e:
         logger.error(f"Error retrieving documents: {str(e)}")
+        raise
+    finally:
+        client.close()
+
+def delete_all_documents() -> Dict[str, str]:
+    """Delete all documents from the vector store"""
+    client = get_weaviate_client()
+    try:
+        client.collections.delete("Document")
+            
+        logger.info("Successfully deleted all documents from the vector store")
+        return {"status": "success", "message": "All documents deleted successfully"}
+    except Exception as e:
+        logger.error(f"Error deleting documents: {str(e)}")
         raise
     finally:
         client.close()
@@ -74,52 +110,3 @@ def create_vector_store(chunks: List[str]):
         raise
     finally:
         client.close()
-
-def retrieve_relevant_context(query: str, top_k: int = 3) -> List[str]:
-    """Retrieve most relevant document chunks."""
-    client = get_weaviate_client()
-    try:
-        collection = client.collections.get("Document")
-        embeddings = OpenAIEmbeddings()
-        query_embedding = embeddings.embed_query(query)
-        
-        # Updated near_vector syntax
-        results = collection.query.near_vector(
-            near_vector=query_embedding,  # Changed from vector= to near_vector=
-            limit=top_k,
-            certainty=0.7  # Changed from distance= to certainty=
-        )
-        
-        # Extract content from results
-        contexts = [obj.properties.get("content", "") for obj in results.objects]
-        logger.info(f"Retrieved {len(contexts)} relevant chunks for query: {query}")
-        return contexts
-        
-    except Exception as e:
-        logger.error(f"Error retrieving context: {str(e)}")
-        raise
-    finally:
-        client.close()
-
-def generate_response(query: str, context: List[str]) -> str:
-    """Generate response using retrieved context."""
-    try:
-        llm = ChatOpenAI(model="gpt-3.5-turbo")
-        
-        prompt = f"""
-        Based on the following context, please answer the query.
-        If the context doesn't contain relevant information, say so.
-        
-        Context: {' '.join(context)}
-        
-        Query: {query}
-        
-        Response:"""
-        
-        response = llm.invoke(prompt).content
-        logger.info(f"Generated response for query: {query}")
-        return response
-        
-    except Exception as e:
-        logger.error(f"Error generating response: {str(e)}")
-        raise

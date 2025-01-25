@@ -58,19 +58,45 @@ def get_all_documents():
     except Exception as e:
         st.error(f"Error: {str(e)}")
 
-def query_documents(query: str):
+def query_documents(query: str, token: str):
+    """
+    Send query to backend RAG pipeline and display results.
+    
+    Args:
+        query (str): User's question
+        token (str): Authentication token
+    """
     try:
         response = requests.post(
             f"{API_URL}/query",
             json={"query": query},  # Make sure to use the correct JSON structure
-            headers={"Authorization": f"Bearer {st.session_state.token}"}
+            headers={"Authorization": f"Bearer {token}",
+                     "Content-Type": "application/json"}
         )
-        if response.status_code == 200:
-            result = response.json()
-            st.write("Response:", result["response"])
-            with st.expander("Show context"):
-                st.write(result["context"])
-        else:
-            st.error(f"Error: {response.status_code}")
+
+        response.raise_for_status()
+        result = response.json()
+        return result;
+        
+        
+    except requests.RequestException as e:
+        st.error(f"API Error: {str(e)}")
+    except KeyError as e:
+        st.error(f"Unexpected response format: {str(e)}")
     except Exception as e:
         st.error(f"Error: {str(e)}")
+
+def delete_all_documents(token: str):
+    """Delete all documents from the database"""
+    try:
+        response = requests.delete(
+            f"{API_URL}/documents",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+        )
+        response.raise_for_status()
+        st.success("All documents deleted successfully")
+    except Exception as e:
+        st.error(f"Error deleting documents: {str(e)}")
