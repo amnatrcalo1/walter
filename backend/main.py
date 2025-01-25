@@ -12,7 +12,7 @@ import uvicorn
 from utils import get_text_chunks, process_query
 from preprocessing import preprocess
 from auth import *
-from vector_store import create_vector_store, delete_all_documents, get_all_documents
+from vector_store import create_vector_store, delete_all_documents
 from fastapi.responses import JSONResponse
 
 class QueryRequest(BaseModel):
@@ -111,14 +111,14 @@ async def upload_documents(files: List[UploadFile] = File(...), current_user: di
 
 
 
-@app.get("/documents")
-async def get_documents(current_user: dict = Depends(get_current_user)):
-    """Retrieve all documents from the vector store."""
-    try:
-        documents = get_all_documents()
-        return {"documents": documents}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# @app.get("/documents")
+# async def get_documents(current_user: dict = Depends(get_current_user)):
+#     """Retrieve all documents from the vector store."""
+#     try:
+#         documents = get_all_documents()
+#         return {"documents": documents}
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
     
 
 @app.post("/query")

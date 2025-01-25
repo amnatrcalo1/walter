@@ -1,12 +1,10 @@
 import logging
 from typing import Any, Dict
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.chains.question_answering import load_qa_chain
-from langchain_openai import ChatOpenAI
-from vector_store import get_vectorstore, get_weaviate_client
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from vector_store import get_vectorstore
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
+from langchain.chains import RetrievalQA
 
 logger = logging.getLogger(__name__)
 
@@ -22,36 +20,21 @@ def get_text_chunks(raw_text):
     return chunks
 
 def process_query(query: str) -> Dict[str, Any]:
-    """RAG pipeline: retrieve -> generate"""
-    client = None # new
+    """RAG pipeline using LangChain components"""
     try:
-        client = get_weaviate_client()
-        collection = client.collections.get("Document")
-        # vectorstore = get_vectorstore()
+        # 1. Setup LangChain components
+        vectorstore = get_vectorstore()
+        embeddings = OpenAIEmbeddings()
         llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7)
-
-        # docs = vectorstore.similarity_search(
-        #     query,
-        #     k=3  # Get top 3 most relevant chunks
-        # )
-
-          # 2. Retrieve relevant documents using vector search
-        results = collection.query.bm25(
-            query=query,
-            limit=3
+        query_vector = embeddings.embed_query(query)
+        
+        # 2. Create retriever
+        retriever = vectorstore.as_retriever(
+            search_type="similarity",
+            search_kwargs={"k": 3, "vector": query_vector}
         )
-
-        if not results.objects:
-            return {
-                "response": "No relevant information found in the documents.",
-                "context": []
-            }
-
-        docs = [obj.properties.get("content", "") for obj in results.objects]
         
-        context = "\n\n".join(docs)
-        
-        # 4. Create prompt
+        # 3. Setup custom prompt
         prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a helpful AI assistant. Use the following context to answer the question.
             If the context doesn't contain relevant information, say so.
@@ -60,23 +43,24 @@ def process_query(query: str) -> Dict[str, Any]:
             {context}"""),
             ("human", "{question}")
         ])
-
-        # 5. Generate response
-        messages = prompt.format_messages(
-            context=context,
-            question=query
+        
+        # 4. Create RAG chain
+        qa_chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            chain_type="stuff",
+            retriever=retriever,
+            return_source_documents=True,
+            chain_type_kwargs={"prompt": prompt}
         )
-        response = llm.invoke(messages)
-
+        
+        # 5. Run the chain
+        result = qa_chain.invoke(query)
+        
         return {
-            "response": response.content,
-            "context": docs
+            "response": result["result"],
+            "context": [doc.page_content for doc in result["source_documents"]]
         }
 
     except Exception as e:
         logger.error(f"Error in RAG pipeline: {str(e)}")
         raise
-    finally:
-        if client:
-            client.close()
-

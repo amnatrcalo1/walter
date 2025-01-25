@@ -14,4 +14,4 @@ python-jose[cryptography]
 passlib[bcrypt]
 langchain-community
 langchain_openai
-weaviate-client>=4.0.0
+weaviate-client>=3.26.7,<4.0.0
