@@ -10,7 +10,7 @@ cd frontend
 pip install -r requirements.txt
 ```
 
-### Run the frontend
+## Run the frontend
 
 ```bash
 cd frontend
@@ -19,7 +19,7 @@ streamlit run app.py
 
 Frontend is running on port 8501.
 
-### Run the backend
+## Run the backend
 
 ```bash
 cd backend
@@ -30,7 +30,7 @@ Backend is running on port 8000.
 
 API documentation is available at http://localhost:8000/docs.
 
-### Run the Weaviate
+## Run the Weaviate
 
 ```bash
 docker-compose up -d
@@ -38,15 +38,34 @@ docker-compose up -d
 
 Weaviate is running on port 8080.
 
-### Check the database
+## Environment Configuration
+
+### Required Environment Variables (.env)
+
+Create a `.env` file in the root directory with the following configurations:
+
+```bash
+# .env
+
+# OpenAI Configuration
+OPENAI_API_KEY="sk-..."  # Your OpenAI API key
+
+# Weaviate Configuration
+WEAVIATE_URL="http://localhost:8080"  # Weaviate instance URL
+
+# Authentication
+SECRET_KEY="your-secret-key-here" 
+```
+
+## Check the database
 
 To see a visual representation of the database, go to http://localhost:8080/v1/objects?class=Document
 
-### Healthcheck
+## Healthcheck
 
 To check the health of the system, go to http://localhost:8000/healthcheck
 
-### Brief technical description
+## Brief technical description
 
 The system is built using FastAPI for the backend, Streamlit for the frontend, and Weaviate for the vector database. The backend handles authentication, document processing, and API endpoints. The frontend provides a user interface for uploading documents, querying the database, and viewing results. The vector database is used to store and retrieve document embeddings for efficient similarity search.
 
