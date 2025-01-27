@@ -1,9 +1,6 @@
 import streamlit as st
-import requests
-from typing import List, Optional
-import json
 
-from utils import delete_all_documents, get_all_documents, login, query_documents, upload_files
+from utils import delete_all_documents, login, query_documents, upload_files
 
 
 def main():
@@ -67,28 +64,24 @@ def main():
             with st.spinner("Generating response..."):
                 result = query_documents(user_question, st.session_state.token)
             st.write(result["response"]);
-        #  Display source context in expandable section
+       
             with st.expander("View Source Context"):
                 for i, context in enumerate(result["context"], 1):
                     st.markdown(f"**Source {i}:**")
                     st.markdown(context)
-                    if i < len(result["context"]):  # Don't add divider after last item
+                    if i < len(result["context"]):  
                         st.divider()
-
-            with st.expander("View Sources"):
-                for source in result["sources"]:
-                    st.markdown(source)
 
         if 'last_process_result' in st.session_state:        
             st.header("Summary")
             for file in st.session_state.last_process_result['processed_files']:
                 st.write(f"- {file['filename']}")
-
                 st.write("\nText Analysis:")
                 metadata = file['metadata']
                 st.write(f"- Number of sentences: {metadata['num_sentences']}")
                 st.write(f"- Number of words: {metadata['num_words']}")
                 st.write(f"- Number of characters: {metadata['num_characters']}")
+                st.divider()
   
 
 if __name__ == "__main__":

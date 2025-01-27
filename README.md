@@ -42,3 +42,7 @@ Weaviate is running on port 8080.
 
 To see a visual representation of the database, go to http://localhost:8080/v1/objects?class=Document
 
+### Healthcheck
+
+To check the health of the system, go to http://localhost:8000/healthcheck
+

@@ -7,37 +7,78 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Returns raw Weaviate database client
-# Used for direct database operations (create/update/delete)
-# Needed for low-level operations
-# What we've been using for storing documents
 def get_weaviate_client():
-    """Get connected Weaviate client"""
+    """
+    Create and return a configured Weaviate client instance.
+    Used for direct database operations (create/update/delete)
+    
+    Returns:
+        weaviate.Client: Configured Weaviate client connection
+        
+    Environment Variables Required:
+        - WEAVIATE_URL: URL of the Weaviate instance (e.g., "http://localhost:8080")
+        - OPENAI_API_KEY: OpenAI API key for embeddings
+        
+    Raises:
+        weaviate.exceptions.WeaviateConnectionError: If cannot connect to Weaviate
+        ValueError: If required environment variables are missing
+        
+    Example:
+        >>> client = get_weaviate_client()
+        >>> client.schema.get()  # Check connection
+            
+    Configuration:
+        - No authentication (suitable for development)
+        - Default timeout settings
+    """
+    if not os.getenv("WEAVIATE_URL"):
+        raise ValueError("WEAVIATE_URL environment variable is not set")
+        
+    if not os.getenv("OPENAI_API_KEY"):
+        raise ValueError("OPENAI_API_KEY environment variable is not set")
     return weaviate.Client(
         url=os.getenv("WEAVIATE_URL"),
-        additional_headers={
-            "X-OpenAI-Api-Key": os.getenv("OPENAI_API_KEY")
-        }
     )
 
-# def get_langchain_client():
-#     """Get Weaviate client compatible with LangChain"""
-#     auth_config = weaviate.auth.AuthApiKey(api_key=os.getenv("WEAVIATE_API_KEY", ""))
-    
-#     return weaviate.Client(
-#         url=os.getenv("WEAVIATE_URL"),
-#         auth_client_secret=auth_config,
-#         additional_headers={
-#             "X-OpenAI-Api-Key": os.getenv("OPENAI_API_KEY")
-#         }
-#     )
-
-# Returns LangChain's wrapper around Weaviate
-# Integrates with other LangChain components
-# Handles embeddings automatically
-# Better for RAG operations (retrieval and querying)
 def get_vectorstore():
-    """Get Weaviate vectorstore with LangChain integration"""
+    """
+    Create a LangChain-integrated Weaviate vector store instance.
+    
+    Returns:
+        Weaviate: Configured vector store with the following setup:
+            - Index: "Document" class
+            - Text field: "content"
+            - Embeddings: OpenAI embeddings
+            - Attributes: ["content"]
+            - Search: Vector-based (by_text=False)
+            
+    Components:
+        - Client: Weaviate connection from get_weaviate_client()
+        - Embeddings: OpenAI's text-embedding-ada-002 model
+        - Index: "Document" class for storing text chunks
+        
+    Configuration:
+        - text_key: Field containing the document text ("content")
+        - by_text: False (use vector similarity instead of text search)
+        - attributes: Only retrieve "content" field
+        
+    Example:
+        >>> vectorstore = get_vectorstore()
+        >>> results = vectorstore.similarity_search("query", k=3)
+        >>> for doc in results:
+        >>>     print(doc.page_content)
+        
+    Note:
+        This setup is optimized for RAG (Retrieval-Augmented Generation):
+        - Vector similarity search for semantic matching
+        - OpenAI embeddings for high-quality vectors
+        - Minimal attribute retrieval for efficiency
+        
+    Dependencies:
+        - OpenAIEmbeddings from langchain_openai
+        - Weaviate client configuration
+        - "Document" class must exist in Weaviate
+    """
     client = get_weaviate_client()
     embeddings = OpenAIEmbeddings()
     
@@ -75,7 +116,44 @@ def get_vectorstore():
 #         client.close()
 
 def delete_all_documents() -> Dict[str, str]:
-    """Delete all documents from the vector store"""
+    """
+    Delete all documents by removing the entire Document class from Weaviate.
+    
+    Returns:
+        Dict[str, str]: Status and message
+            Format:
+            {
+                "status": "success",
+                "message": "All documents deleted successfully"
+            }
+            
+    Raises:
+        Exception: If deletion fails, with error details logged
+            - Connection errors
+            - Schema deletion errors
+            - Class not found errors
+            
+    Side Effects:
+        - Permanently deletes the "Document" class
+        - Removes all vectors and content
+        - Logs deletion status
+        - Automatically closes client connection
+        
+    Example:
+        >>> try:
+        >>>     result = delete_all_documents()
+        >>>     print(result["message"])
+        >>> except Exception as e:
+        >>>     print(f"Deletion failed: {e}")
+        
+    Warning:
+        This is a destructive operation that cannot be undone.
+        The entire "Document" class will be removed from the schema.
+        
+    Note:
+        The client connection is properly closed in the finally block,
+        ensuring cleanup even if an error occurs.
+    """
     client = get_weaviate_client()
     try:
         
@@ -90,20 +168,72 @@ def delete_all_documents() -> Dict[str, str]:
         client.close()
 
 def create_vector_store(chunks: List[str]):
-    """Create vector store in Weaviate."""
+    """
+    Create and populate a Weaviate vector store with text chunks and their embeddings.
+    
+    Args:
+        chunks: List of text chunks to be stored and vectorized
+        
+    Returns:
+        None
+        
+    Raises:
+        Exception: If any step fails (logged with details)
+            - Schema creation errors
+            - Embedding generation errors
+            - Batch import errors
+            
+    Process Steps:
+        1. Schema Setup:
+           - Creates "Document" class if not exists
+           - Configures "content" property for text storage
+           
+        2. Embedding Generation:
+           - Uses OpenAI's embedding model
+           - Converts each text chunk to a vector
+           
+        3. Batch Import:
+           - Processes chunks in batches of 100
+           - Stores both text and vectors
+           - Optimized for performance
+           
+    Example:
+        >>> text_chunks = ["chunk1", "chunk2", "chunk3"]
+        >>> create_vector_store(text_chunks)
+        
+    Performance:
+        - Uses batch processing for efficient imports
+        - Batch size of 100 for optimal throughput
+        - Vectors are created and stored in parallel
+        
+    Schema:
+        Document Class:
+        {
+            "class": "Document",
+            "properties": [
+                {
+                    "name": "content",
+                    "dataType": ["text"]
+                }
+            ]
+        }
+        
+    Logging:
+        - Info: Successful creation and import counts
+        - Error: Detailed error messages
+        - Info: Schema existence checks
+        
+    Note:
+        The function is idempotent for schema creation:
+        - Safe to call multiple times
+        - Won't duplicate schema if exists
+        - Will add new documents each time
+    """
     client = get_weaviate_client()
     try:
         # Configure the schema for Document class if it doesn't exist
         class_obj = {
             "class": "Document",
-            "vectorizer": "text2vec-openai",  # Using OpenAI's text vectorizer
-            "moduleConfig": {
-                "text2vec-openai": {
-                    "model": "ada",
-                    "modelVersion": "002",
-                    "type": "text"
-                }
-            },
             "properties": [
                 {
                     "name": "content",
@@ -127,8 +257,7 @@ def create_vector_store(chunks: List[str]):
             batch.batch_size = 100
             for chunk in chunks:
                 # Create embedding vector
-                embedding = embeddings.embed_query(chunk)
-                
+                embedding = embeddings.embed_query(chunk)                
                 # Properties of the object
                 properties = {
                     "content": chunk
