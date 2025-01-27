@@ -12,7 +12,7 @@ Features:
     
 Security Configuration:
     - JWT signing with HS256 algorithm
-    - 30-minute token expiration
+    - 15-minute token expiration
     - Secure password hashing
     - Bearer token authentication
     
