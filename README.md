@@ -61,6 +61,17 @@ SECRET_KEY="your-secret-key-here"
 
 To see a visual representation of the database, go to http://localhost:8080/v1/objects?class=Document
 
+Note: if the database is empty, the page will be undefined. When you upload a document, the page will be updated.
+
+## Credentials
+
+To login, use the following credentials:
+
+```bash
+username: amna@example.com
+password: amna123
+```
+
 ## Healthcheck
 
 To check the health of the system, go to http://localhost:8000/healthcheck
@@ -105,7 +116,7 @@ Selected for:
 
 ### Chunking Strategy
 
-Our text chunking implementation:
+The text chunking implementation:
 ```python
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,    # Characters per chunk
